@@ -23,6 +23,7 @@ class AgentRequest(BaseModel):
     task: str
     phone_number: Optional[str] = None
     max_steps: Optional[int] = 10
+    call_id: Optional[str] = "none-provided"
 
 class AgentResponse(BaseModel):
     success: bool
@@ -101,7 +102,8 @@ async def run_agent(request: AgentRequest):
             return run_enhanced_agent(
                 task=request.task,
                 phone_number=request.phone_number,
-                max_steps=request.max_steps
+                max_steps=request.max_steps,
+                call_id=request.call_id
             )
         
         # Execute the agent

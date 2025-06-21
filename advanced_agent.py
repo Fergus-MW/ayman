@@ -42,6 +42,7 @@ class AdvancedAgentState(TypedDict):
     max_steps: int
     execution_log: List[Dict[str, Any]]
     context_memory: Dict[str, Any]
+    call_id: Optional[str]
 
 
 # Initialize Tavily client
@@ -967,6 +968,10 @@ Generate the task-specific section for this call.""")
         if not task_section or len(task_section) < 10:
             raise Exception("Task section too short or empty")
         
+        # Get call_id from state if available
+        call_id = state.get("call_id")
+        call_id_section = f"\n\nCALL ID: {call_id}" if call_id else ""
+        
         # Build the complete system prompt using the template
         system_prompt = f"""You are a personal assistant called Ayman. You are making outbound calls on behalf of users. You are polite, efficient, and focused on completing tasks successfully.
 
@@ -980,7 +985,7 @@ CURRENT TASK:
 {task_section}
 
 CONTEXT INFORMATION:
-{context_info if context_info else 'No additional context available'}
+{context_info if context_info else 'No additional context available'}{call_id_section}
 
 Remember to be helpful and professional throughout the entire conversation. Focus on completing the task while maintaining a positive interaction."""
 
@@ -1008,6 +1013,10 @@ Remember to be helpful and professional throughout the entire conversation. Focu
         # Fallback task section
         task_section = f"I need to {enhanced_task.lower()}. Please help me complete this request efficiently and professionally."
         
+        # Get call_id from state if available (for fallback)
+        call_id = state.get("call_id")
+        call_id_section = f"\n\nCALL ID: {call_id}" if call_id else ""
+        
         # Build fallback system prompt using the same template
         system_prompt = f"""You are a personal assistant called Ayman. You are making outbound calls on behalf of users. You are polite, efficient, and focused on completing tasks successfully.
 
@@ -1023,7 +1032,7 @@ CURRENT TASK:
 {task_section}
 
 CONTEXT INFORMATION:
-{context_info if 'context_info' in locals() else 'No additional context available'}
+{context_info if 'context_info' in locals() else 'No additional context available'}{call_id_section}
 
 Remember to be helpful and professional throughout the entire conversation. Focus on completing the task while maintaining a positive interaction."""
 
@@ -1203,7 +1212,7 @@ enhanced_workflow.set_entry_point("planner")
 enhanced_app = enhanced_workflow.compile()
 
 
-def run_enhanced_agent(task: str, phone_number: str = None, max_steps: int = 15) -> Dict[str, Any]:
+def run_enhanced_agent(task: str, phone_number: str = None, max_steps: int = 15, call_id: str = None) -> Dict[str, Any]:
     """
     Run the enhanced agent with a specific task.
     
@@ -1211,6 +1220,7 @@ def run_enhanced_agent(task: str, phone_number: str = None, max_steps: int = 15)
         task: The task to execute
         phone_number: Optional phone number to call
         max_steps: Maximum number of steps to execute
+        call_id: Optional call ID to include in system prompt
         
     Returns:
         Final state of the agent with detailed results
@@ -1221,6 +1231,7 @@ def run_enhanced_agent(task: str, phone_number: str = None, max_steps: int = 15)
     print(f"📋 Task: {task}")
     print(f"📱 Phone Number: {phone_number or 'Will search for phone number'}")
     print(f"🔢 Max Steps: {max_steps}")
+    print(f"🆔 Call ID: {call_id or 'Not provided'}")
     print(f"{'='*80}")
     
     if phone_number:
@@ -1241,7 +1252,8 @@ def run_enhanced_agent(task: str, phone_number: str = None, max_steps: int = 15)
         "step_count": 0,
         "max_steps": max_steps,
         "execution_log": [],
-        "context_memory": {}
+        "context_memory": {},
+        "call_id": call_id
     }
     
     print("🔄 Initial State Created")
@@ -1259,7 +1271,7 @@ def run_enhanced_agent(task: str, phone_number: str = None, max_steps: int = 15)
 
 if __name__ == "__main__":
     # Example usage
-    task = "order a medium margarita pizza from Dominos to 24 Tregarvon Rd, London SW11 5QE"
+    task = "order a medium margarita pizza from Pizza Hut to 17 Rock St, Kemptown, Brighton BN2 1NF"
     phone_number = None  # Let the agent find the phone number via research
     
     print("Starting enhanced LangGraph agent...")
