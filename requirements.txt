@@ -1,0 +1,7 @@
+langgraph
+langchain-core
+langchain-mistralai
+langchain-community
+tavily-python
+requests
+python-dotenv
