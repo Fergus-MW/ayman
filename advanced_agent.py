@@ -537,6 +537,14 @@ def enhanced_planner_node(state: AdvancedAgentState):
     context_memory = state.get("context_memory", {})
     print(f"🔑 Key Facts: {len(key_facts)} collected")
     print(f"🧠 Context Memory: {len(context_memory)} items")
+    
+    # Check for phone call issues
+    if context_memory.get("phone_call_blocked"):
+        print("⚠️  PHONE CALL ISSUE DETECTED:")
+        print(f"   📞 Error: {context_memory.get('phone_call_error', 'Unknown error')}")
+        print(f"   🔍 Needs Research: {context_memory.get('needs_phone_research', False)}")
+        print(f"   ⏰ Last Attempt: {context_memory.get('last_phone_call_attempt', 'Unknown')}")
+        
     if key_facts:
         print("   Recent facts:")
         for k, v in list(key_facts.items()):
@@ -918,8 +926,56 @@ def enhanced_phone_call_node(state: AdvancedAgentState):
         else:
             # No phone number available
             print("❌ No phone number available - research may be needed first")
-            new_messages = [AIMessage(content="Cannot make phone call: No phone number found. Research step may be needed first.")]
-            return {"messages": new_messages}
+            
+            # Update phone call requirement to show it failed due to missing phone number
+            for req in task_requirements:
+                if req["name"] == "phone_call":
+                    req["completed"] = False
+                    req["result"] = {
+                        "success": False,
+                        "error": "No phone number available",
+                        "needs_research": True,
+                        "timestamp": datetime.now().isoformat()
+                    }
+            
+            # Ensure research requirement exists and is not completed
+            research_req_exists = any(req["name"] == "research" for req in task_requirements)
+            if not research_req_exists:
+                print("📝 Adding research requirement to find phone number")
+                task_requirements.append({
+                    "name": "research",
+                    "description": "Find phone number and contact information",
+                    "completed": False,
+                    "result": None
+                })
+            else:
+                # Mark existing research as incomplete if no phone number found
+                for req in task_requirements:
+                    if req["name"] == "research" and req.get("completed", False):
+                        # Check if we actually found a phone number in the research
+                        if not context_memory.get("found_phone_number"):
+                            print("📝 Marking research as incomplete - no phone number found")
+                            req["completed"] = False
+                            req["result"] = {
+                                "success": False,
+                                "error": "Research completed but no phone number found",
+                                "needs_phone_search": True,
+                                "timestamp": datetime.now().isoformat()
+                            }
+            
+            # Update context memory to inform planner
+            context_memory["phone_call_blocked"] = True
+            context_memory["phone_call_error"] = "No phone number available"
+            context_memory["needs_phone_research"] = True
+            context_memory["last_phone_call_attempt"] = datetime.now().isoformat()
+            
+            new_messages = [AIMessage(content="Cannot make phone call: No phone number found. Research step is needed to find contact information.")]
+            
+            return {
+                "messages": new_messages,
+                "task_requirements": task_requirements,
+                "context_memory": context_memory
+            }
     else:
         print(f"📱 Target Phone: {phone_number}")
     
@@ -1016,9 +1072,11 @@ Remember to be helpful and professional throughout the entire conversation. Focu
         # Get call_id from state if available (for fallback)
         call_id = state.get("call_id")
         call_id_section = f"\n\nCALL ID: {call_id}" if call_id else ""
+        if call_id_section == "":
+            print("No call ID provided!!!!!!!!!")
         
         # Build fallback system prompt using the same template
-        system_prompt = f"""You are a personal assistant called Ayman. You are making outbound calls on behalf of users. You are polite, efficient, and focused on completing tasks successfully.
+        system_prompt = f"""You are a personal assistant called Ayman. You are making outbound calls on behalf of users. You are polite, efficient, and focused on completing tasks successfully. The number you are calling from is 01615247052.
 
 CORE GUIDELINES:
 - Always be assertive, direct and use colloquial language
@@ -1027,6 +1085,7 @@ CORE GUIDELINES:
 - Do not tell them you are making the call on behalf of a user, just focus on completing the task
 - Do not say you are an assistant, AI, or automated system – speak naturally, like a real person. Be polite, friendly, and efficient. Do not overshare unless asked.
 - If the user provides insufficient information, infer or create the necessary details based on context and proceed. As long as the task is completed, it's up to you how this is achieved and you can decide the details yourself.
+- use the log_call_status tool to send updates on the progress of the call all the time with each message
 
 CURRENT TASK:
 {task_section}

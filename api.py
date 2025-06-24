@@ -97,11 +97,17 @@ async def run_agent(request: AgentRequest):
                 detail=f"Missing required environment variables: {', '.join(missing_vars)}"
             )
         
+        # Validate phone number - set to None if invalid
+        validated_phone_number = request.phone_number
+        if validated_phone_number and validated_phone_number in ["+1234567890", "1234567890"]:
+            logger.info(f"Invalid phone number provided: {validated_phone_number}, setting to None")
+            validated_phone_number = None
+        
         # Run the agent in a separate thread to avoid blocking
         def run_agent_sync():
             return run_enhanced_agent(
                 task=request.task,
-                phone_number=request.phone_number,
+                phone_number=validated_phone_number,
                 max_steps=request.max_steps,
                 call_id=request.call_id
             )
