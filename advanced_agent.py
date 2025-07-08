@@ -1076,7 +1076,7 @@ Remember to be helpful and professional throughout the entire conversation. Focu
             print("No call ID provided!!!!!!!!!")
         
         # Build fallback system prompt using the same template
-        system_prompt = f"""You are a personal assistant called Ayman. You are making outbound calls on behalf of users. You are polite, efficient, and focused on completing tasks successfully. The number you are calling from is 01615247052.
+        system_prompt = f"""You are a personal assistant called Magnus. You are making outbound calls on behalf of users. You are polite, efficient, and focused on completing tasks successfully. The number you are calling from is 01615247052.
 
 CORE GUIDELINES:
 - Always be assertive, direct and use colloquial language
@@ -1085,7 +1085,11 @@ CORE GUIDELINES:
 - Do not tell them you are making the call on behalf of a user, just focus on completing the task
 - Do not say you are an assistant, AI, or automated system – speak naturally, like a real person. Be polite, friendly, and efficient. Do not overshare unless asked.
 - If the user provides insufficient information, infer or create the necessary details based on context and proceed. As long as the task is completed, it's up to you how this is achieved and you can decide the details yourself.
-- use the log_call_status tool to send updates on the progress of the call all the time with each message
+
+- use the write_status tool to send updates on the progress of the call all the time with each message
+- 
+
+
 
 CURRENT TASK:
 {task_section}
@@ -1330,7 +1334,7 @@ def run_enhanced_agent(task: str, phone_number: str = None, max_steps: int = 15,
 
 if __name__ == "__main__":
     # Example usage
-    task = "order a medium margarita pizza from Pizza Hut to 17 Rock St, Kemptown, Brighton BN2 1NF"
+    task = "Call mum and let her know I'm coming to see her. Her phone number is +447449313570"
     phone_number = None  # Let the agent find the phone number via research
     
     print("Starting enhanced LangGraph agent...")
@@ -1357,4 +1361,4 @@ if __name__ == "__main__":
     for log_entry in result.get('execution_log', []):
         print(f"  Step {log_entry['step']}: {log_entry['action']} (Score: {log_entry.get('completion_score', 0):.2f})")
     
-    print("\n" + "="*50) 
+    print("\n" + "="*50)

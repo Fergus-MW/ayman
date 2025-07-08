@@ -5,7 +5,7 @@ A sophisticated LangGraph-based agent system that can perform research tasks and
 ## Features
 
 ### Core Capabilities
-- **Mistral AI Integration**: Uses Mistral for intelligent inference, planning, and decision-making throughout the workflow
+- **Gemini AI Integration**: Uses Google's Gemini for intelligent inference, planning, and decision-making throughout the workflow
 - **Phone Call Integration**: Make automated phone calls using ElevenLabs voice and Twilio API with AI-generated scripts
 - **Research Capabilities**: Search the web using Tavily API with AI-optimized queries and intelligent result analysis
 - **State Management**: Track task progress, key facts, and completion status with AI-powered analysis
@@ -15,13 +15,13 @@ A sophisticated LangGraph-based agent system that can perform research tasks and
 ### Two Agent Types
 
 #### 1. Basic Agent (`agent.py`)
-- Mistral-powered planning, analysis, and routing decisions
+- Gemini-powered planning, analysis, and routing decisions
 - AI-generated search queries and call scripts
 - Intelligent task completion analysis
 - Essential phone calling and research capabilities
 
 #### 2. Advanced Agent (`advanced_agent.py`)
-- Full Mistral integration for all inference tasks
+- Full Gemini integration for all inference tasks
 - AI-powered requirement detection and completion scoring
 - Enhanced state management with intelligent analysis
 - Context memory with AI-driven continuity
