@@ -17,9 +17,7 @@ def execute_whatsapp_task(
     Execute a task using the WhatsApp agent.
 
     Args:
-        task: A detailed description of the task to be executed. It should include the phone number of the recipient and instructions to contact them.
-        user_id: The user ID for context. This is injected automatically by the agent.
-        conversation_id: The conversation ID for context. This is injected automatically by the agent.
+        task: A detailed description of the task to be executed. It should include the phone number of the person to contact.
 
     Returns:
         A dictionary with the task execution result.

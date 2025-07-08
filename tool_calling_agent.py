@@ -36,6 +36,7 @@ from global_tools import (
 )
 from serp_tools import serp_search, flights, hotels, maps, amazon
 from whatsapp_agent import execute_whatsapp_task
+from checkout_agent import book_flight
 
 
 # Initialize clients
@@ -305,6 +306,48 @@ def sleep_tool(duration_seconds: int = 60) -> Dict[str, Any]:
         }
 
 
+@tool_wrapper
+def mark_task_as_complete(justification: str, conversation_id: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Marks the current task as complete after verifying all steps are done. You MUST call this tool as the final step.
+
+    Before calling this tool, you should have verified that the original request has been fully satisfied.
+    The agent will exit after this tool is successfully called.
+
+    Args:
+        justification: A clear and concise explanation of why the task is considered complete.
+        conversation_id: The conversation ID for status updates. This is injected automatically.
+
+    Returns:
+        A dictionary confirming the task has been marked as complete.
+    """
+    try:
+        if not conversation_id:
+             raise ValueError("conversation_id is required to mark task as complete.")
+
+        print(f"✅ Task being marked as complete. Justification: {justification}")
+        
+        status_result = write_status(
+            conversation_id=conversation_id,
+            status=f"TASK_COMPLETED; Justification: {justification}"
+        )
+        
+        if not status_result.get("success"):
+            print(f"⚠️ Failed to write final status update: {status_result.get('error')}")
+        
+        return {
+            "success": True,
+            "message": "TASK_COMPLETED"
+        }
+        
+    except Exception as e:
+        print(f"❌ Error marking task as complete: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
 # List of available tools
 AVAILABLE_TOOLS = [
     web_search, 
@@ -323,7 +366,9 @@ AVAILABLE_TOOLS = [
     hotels,
     maps,
     amazon,
-    execute_whatsapp_task
+    execute_whatsapp_task,
+    book_flight,
+    mark_task_as_complete
 ]
 
 
@@ -353,15 +398,18 @@ AVAILABLE TOOLS:
 {chr(10).join(tool_descriptions)}
 
 GUIDELINES:
-1. Analyze the user's request and break it down into steps
-2. IMPORTANT: Do NOT include `user_id` or `conversation_id` in your tool calls. The agent handles these automatically.
-3. Use the appropriate tools to gather information and complete tasks
-4. For phone calls, you may need to search for phone numbers first using web_search or get_contacts
-5. Always provide clear updates on your progress using write_status
-6. If you need to wait for something (like a call to complete), use the sleep_tool
-7. Be methodical and thorough in your approach
-8. Explain your reasoning for each tool call
-9. Use the phone_agent or whatsapp_agent to get in touch with the user if you need their input
+1. The user will provide an initial context object. Use this to inform your plan and actions.
+2. Analyze the user's request and break it down into steps
+3. IMPORTANT: Do NOT include `user_id` or `conversation_id` in your tool calls. The agent handles these automatically.
+4. Use the appropriate tools to gather information and complete tasks
+5. For phone calls, you may need to search for phone numbers first using web_search or get_contacts
+6. Always provide clear updates on your progress using write_status
+7. If you need to wait for something (like a call to complete), use the sleep_tool
+8. Be methodical and thorough in your approach
+9. Explain your reasoning for each tool call
+10. Use the phone_agent or whatsapp_agent to get in touch with the user if you need their input
+11. for the whatsapp_agent, include the phoneNumber of the person to contact in the task
+12. Once you have verified that the task is complete, you MUST call `mark_task_as_complete` to finish.
 
 TASK COMPLETION STRATEGY:
 - For ordering/booking tasks: Search for contact info, then make phone call
@@ -401,7 +449,9 @@ Available tools:
 - hotels: Get hotel information from the SerpAPI Google Hotels API.
 - maps: Get map information from the SerpAPI Google Maps API.
 - amazon: Get product information from the SerpAPI Amazon API.
-- execute_whatsapp_task: Execute a task by contacting someone using the WhatsApp agent.
+- execute_whatsapp_task: Execute a task by contacting someone using the WhatsApp agent. Include the phone number of the recipient in the task.
+- book_flight: Book a flight using the Checkout Agent API.
+- mark_task_as_complete: Marks the current task as complete and exits the agent.
 
 Return a JSON list of steps, where each step describes what needs to be done.
 
@@ -431,21 +481,6 @@ IMPORTANT: Return ONLY the JSON list, no other text."""),
                 
             except Exception as e:
                 print(f"⚠️ Gemini AI Planning failed: {e}")
-        
-        # Fallback rule-based planning
-        print("🔄 Using rule-based planning...")
-        task_lower = task.lower()
-        
-        plan = []
-        if any(word in task_lower for word in ["search", "find", "information"]):
-            plan.append("Search for relevant information")
-        if any(word in task_lower for word in ["contact", "person"]):
-            plan.append("Get contact information")
-        if any(word in task_lower for word in ["order", "pizza", "food", "delivery", "call", "phone", "book", "reserve"]):
-            plan.append("Make phone call to complete task")
-        if not plan:
-            return ["Search for relevant information", "Complete the requested task"]
-        return plan
 
     def run(self, task: str, conversation_id: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -499,13 +534,22 @@ IMPORTANT: Return ONLY the JSON list, no other text."""),
             print(f"   {i}. {step}")
         
         # Initialize conversation and execution log
+        initial_context_str = json.dumps(context)
+        print(initial_context_str)
         self.conversation_history = [
             SystemMessage(content=self.system_prompt_template),
-            HumanMessage(content=f"Please complete this task: {task}")
+            HumanMessage(content=f"""Please complete the following task.
+
+TASK:
+{task}
+
+INITIAL CONTEXT:
+{initial_context_str}""")
         ]
         self.execution_log = []
         
         iteration = 0
+        task_completed = False
         while iteration < self.max_iterations:
             iteration += 1
             print(f"\n{'='*60}")
@@ -535,7 +579,7 @@ IMPORTANT: Return ONLY the JSON list, no other text."""),
                         # Special handling for tools that need user_id or conversation_id
                         if tool_name in ["add_contact", "update_contact", "get_contacts", "add_memory", "search_memory", "execute_whatsapp_task"]:
                             tool_args["user_id"] = self.user_id
-                        if tool_name in ["write_status", "read_status", "execute_whatsapp_task", "make_outbound_call"]:
+                        if tool_name in ["write_status", "read_status", "execute_whatsapp_task", "make_outbound_call", "book_flight", "mark_task_as_complete"]:
                             tool_args["conversation_id"] = conversation_id
 
                         if tool_name in self.tools:
@@ -568,6 +612,10 @@ IMPORTANT: Return ONLY the JSON list, no other text."""),
                                 })
                                 
                                 print(f"✅ Tool execution completed")
+
+                                if tool_name == 'mark_task_as_complete' and tool_result.get('success'):
+                                    print("➡️ Task marked as complete. Agent will now exit.")
+                                    task_completed = True
                                 
                             except Exception as e:
                                 error_msg = f"Tool execution failed: {str(e)}"
@@ -588,6 +636,8 @@ IMPORTANT: Return ONLY the JSON list, no other text."""),
                             )
                             self.conversation_history.append(tool_message)
                 
+                    if task_completed:
+                        break
                 else:
                     # No tool calls, check if task is complete
                     print("💬 Agent response (no tool calls):")

@@ -165,8 +165,8 @@ def write_status(agent_id: str, agent_type: str, conversation_id: str, update: s
         The result of the operation.
     """
     payload = {
-        "agent_id": agent_id,
-        "agent_type": agent_type,
+        "agent_id": "orchestrator",
+        "agent_type": "orchestrator",
         "conversation_id": conversation_id,
         "update": update,
     }

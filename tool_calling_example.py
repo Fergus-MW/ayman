@@ -16,7 +16,7 @@ def example_pizza_order():
     print("EXAMPLE 1: Pizza Order")
     print("="*80)
     
-    task = "Order a large pepperoni pizza for delivery to my address"
+    task = "Book me a flight."
     user_id = "686a6dda9030f92d7aeaaeb0"
     conversation_id = "686a80819030f92d7aeaaeb2"  # Optional conversation tracking ID
     
